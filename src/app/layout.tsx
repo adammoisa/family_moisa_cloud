@@ -18,8 +18,11 @@ export const metadata: Metadata = {
   description:
     "A private collection of family memories — photos and videos spanning generations of the Moisa family.",
   icons: {
-    icon: "/logo.png",
-    apple: "/logo.png",
+    icon: [
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-48.png", sizes: "48x48", type: "image/png" },
+    ],
+    apple: "/icon-192.png",
   },
   openGraph: {
     title: "Moisa Family Gallery",
