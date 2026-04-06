@@ -83,7 +83,7 @@ export const media = pgTable(
     filename: varchar("filename", { length: 1000 }).notNull(),
     title: varchar("title", { length: 1000 }),
     mimeType: varchar("mime_type", { length: 100 }),
-    fileSize: integer("file_size"),
+    fileSize: integer("file_size"), // bigint in DB for files > 2GB
     width: integer("width"),
     height: integer("height"),
     duration: integer("duration"),
