@@ -156,3 +156,22 @@ export const albumTags = pgTable(
     uniqueIndex("album_tags_unique_idx").on(table.albumId, table.tagId),
   ]
 );
+
+// ─── Favorites ───────────────────────────────────────────
+
+export const favorites = pgTable(
+  "favorites",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull(),
+    mediaId: uuid("media_id")
+      .references(() => media.id, { onDelete: "cascade" })
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("favorites_unique").on(table.userId, table.mediaId),
+    index("favorites_user_id_idx").on(table.userId),
+    index("favorites_media_id_idx").on(table.mediaId),
+  ]
+);

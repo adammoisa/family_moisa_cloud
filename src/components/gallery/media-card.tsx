@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FavoriteButton } from "./favorite-button";
 
 interface MediaCardProps {
   id: string;
@@ -14,6 +15,7 @@ interface MediaCardProps {
 }
 
 export function MediaCard({
+  id,
   title,
   filename,
   type,
@@ -94,6 +96,9 @@ export function MediaCard({
           onError={() => setError(true)}
         />
       )}
+
+      {/* Favorite button */}
+      <FavoriteButton mediaId={id} variant="card" />
 
       {/* Video overlay */}
       {type === "video" && (

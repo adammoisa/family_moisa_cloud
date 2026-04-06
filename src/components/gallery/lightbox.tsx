@@ -3,8 +3,8 @@
 import { useEffect, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { VideoPlayer } from "./video-player";
+import { FavoriteButton } from "./favorite-button";
 
 interface LightboxProps {
   mediaId: string;
@@ -53,6 +53,7 @@ export function Lightbox({ mediaId, albumId, onClose, onNavigate }: LightboxProp
           {data.title || data.filename}
         </h2>
         <div className="flex items-center gap-2">
+          <FavoriteButton mediaId={mediaId} variant="lightbox" />
           {data.fullUrl && (
             <a
               href={data.fullUrl}
@@ -67,16 +68,14 @@ export function Lightbox({ mediaId, albumId, onClose, onNavigate }: LightboxProp
               Download
             </a>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-white/70 hover:text-white hover:bg-white/10"
+          <button
+            className="rounded-md p-1 text-white/70 hover:text-white hover:bg-white/10 transition-colors"
             onClick={onClose}
           >
             <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
-          </Button>
+          </button>
         </div>
       </div>
 
@@ -85,7 +84,6 @@ export function Lightbox({ mediaId, albumId, onClose, onNavigate }: LightboxProp
         className="flex-1 flex items-center justify-center relative px-16"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Nav arrows */}
         {onNavigate && (
           <>
             <button

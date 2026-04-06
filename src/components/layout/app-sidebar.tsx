@@ -21,9 +21,10 @@ import { Button } from "@/components/ui/button";
 const navItems = [
   { title: "Home", href: "/", icon: "home" },
   { title: "Albums", href: "/albums", icon: "folder" },
+  { title: "Videos", href: "/videos", icon: "video" },
   { title: "People", href: "/people", icon: "users" },
   { title: "Timeline", href: "/timeline", icon: "clock" },
-  { title: "Videos", href: "/videos", icon: "video" },
+  { title: "Favorites", href: "/favorites", icon: "heart" },
 ];
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -50,6 +51,11 @@ const iconMap: Record<string, React.ReactNode> = {
   video: (
     <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+    </svg>
+  ),
+  heart: (
+    <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
     </svg>
   ),
 };
