@@ -1,7 +1,7 @@
 import { z } from "zod/v4";
 import { router, protectedProcedure } from "../trpc";
 import { albums, media } from "@/db/schema";
-import { eq, and, isNull, asc, sql, count } from "drizzle-orm";
+import { eq, and, isNull, inArray, asc, sql, count } from "drizzle-orm";
 import { generateSignedUrl } from "../services/s3";
 
 export const albumsRouter = router({
@@ -22,23 +22,26 @@ export const albumsRouter = router({
         .where(condition)
         .orderBy(asc(albums.sortOrder), asc(albums.title));
 
-      // Get cover images with signed URLs
+      // Batch load cover images (avoid N+1)
+      const coverIds = result
+        .map((a) => a.coverMediaId)
+        .filter((id): id is string => id !== null);
+
+      const coverMediaList = coverIds.length > 0
+        ? await ctx.db.select().from(media).where(inArray(media.id, coverIds))
+        : [];
+
+      const coverMediaMap = new Map(coverMediaList.map((m) => [m.id, m]));
+
       const albumsWithCovers = await Promise.all(
         result.map(async (album) => {
           let coverUrl: string | null = null;
-          if (album.coverMediaId) {
-            const coverMedia = await ctx.db
-              .select()
-              .from(media)
-              .where(eq(media.id, album.coverMediaId))
-              .limit(1);
-            if (coverMedia[0]) {
-              const key =
-                coverMedia[0].thumbnailS3Key ||
-                coverMedia[0].smallS3Key ||
-                coverMedia[0].s3Key;
-              coverUrl = await generateSignedUrl(key);
-            }
+          const coverMedia = album.coverMediaId
+            ? coverMediaMap.get(album.coverMediaId)
+            : undefined;
+          if (coverMedia) {
+            const key = coverMedia.thumbnailS3Key || coverMedia.smallS3Key || coverMedia.s3Key;
+            coverUrl = await generateSignedUrl(key);
           }
           return { ...album, coverUrl };
         })
@@ -122,23 +125,26 @@ export const albumsRouter = router({
         })
       );
 
-      // Get cover URLs for child albums
+      // Batch load child album covers (avoid N+1)
+      const childCoverIds = children
+        .map((c) => c.coverMediaId)
+        .filter((id): id is string => id !== null);
+
+      const childCoverList = childCoverIds.length > 0
+        ? await ctx.db.select().from(media).where(inArray(media.id, childCoverIds))
+        : [];
+
+      const childCoverMap = new Map(childCoverList.map((m) => [m.id, m]));
+
       const childrenWithCovers = await Promise.all(
         children.map(async (child) => {
           let coverUrl: string | null = null;
-          if (child.coverMediaId) {
-            const coverMedia = await ctx.db
-              .select()
-              .from(media)
-              .where(eq(media.id, child.coverMediaId))
-              .limit(1);
-            if (coverMedia[0]) {
-              const key =
-                coverMedia[0].thumbnailS3Key ||
-                coverMedia[0].smallS3Key ||
-                coverMedia[0].s3Key;
-              coverUrl = await generateSignedUrl(key);
-            }
+          const coverMedia = child.coverMediaId
+            ? childCoverMap.get(child.coverMediaId)
+            : undefined;
+          if (coverMedia) {
+            const key = coverMedia.thumbnailS3Key || coverMedia.smallS3Key || coverMedia.s3Key;
+            coverUrl = await generateSignedUrl(key);
           }
           return { ...child, coverUrl };
         })
