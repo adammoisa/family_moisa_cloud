@@ -1,7 +1,7 @@
 import { z } from "zod/v4";
 import { router, protectedProcedure } from "../trpc";
 import { albums, media } from "@/db/schema";
-import { eq, isNull, asc, sql, count } from "drizzle-orm";
+import { eq, and, isNull, asc, sql, count } from "drizzle-orm";
 import { generateSignedUrl } from "../services/s3";
 
 export const albumsRouter = router({
@@ -72,26 +72,28 @@ export const albumsRouter = router({
         .orderBy(asc(albums.sortOrder), asc(albums.title));
 
       // Get paginated media
-      const mediaQuery = ctx.db
-        .select()
-        .from(media)
-        .where(eq(media.albumId, album[0].id))
-        .orderBy(asc(media.sortOrder), asc(media.filename))
-        .limit(input.limit + 1);
+      const mediaConditions: any[] = [eq(media.albumId, album[0].id)];
 
       if (input.cursor) {
-        // Simple offset-based: fetch items after cursor
-        const cursorMedia = await ctx.db
-          .select()
+        const cursorItem = await ctx.db
+          .select({ sortOrder: media.sortOrder, filename: media.filename })
           .from(media)
           .where(eq(media.id, input.cursor))
           .limit(1);
-        if (cursorMedia[0]) {
-          // Use sort_order for cursor-based pagination
+
+        if (cursorItem[0]) {
+          mediaConditions.push(
+            sql`(${media.sortOrder} > ${cursorItem[0].sortOrder} OR (${media.sortOrder} = ${cursorItem[0].sortOrder} AND ${media.filename} > ${cursorItem[0].filename}))`
+          );
         }
       }
 
-      const mediaItems = await mediaQuery;
+      const mediaItems = await ctx.db
+        .select()
+        .from(media)
+        .where(and(...mediaConditions))
+        .orderBy(asc(media.sortOrder), asc(media.filename))
+        .limit(input.limit + 1);
 
       const hasMore = mediaItems.length > input.limit;
       const items = hasMore ? mediaItems.slice(0, input.limit) : mediaItems;

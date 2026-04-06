@@ -54,12 +54,20 @@ export const mediaRouter = router({
         );
       }
 
-      let query = ctx.db
-        .select()
-        .from(media)
-        .where(conditions.length > 0 ? and(...conditions) : undefined)
-        .orderBy(asc(media.sortOrder), asc(media.filename))
-        .limit(input.limit + 1);
+      // Cursor-based pagination: skip past the cursor item
+      if (input.cursor) {
+        const cursorItem = await ctx.db
+          .select({ sortOrder: media.sortOrder, filename: media.filename })
+          .from(media)
+          .where(eq(media.id, input.cursor))
+          .limit(1);
+
+        if (cursorItem[0]) {
+          conditions.push(
+            sql`(${media.sortOrder} > ${cursorItem[0].sortOrder} OR (${media.sortOrder} = ${cursorItem[0].sortOrder} AND ${media.filename} > ${cursorItem[0].filename}))`
+          );
+        }
+      }
 
       // If filtering by tags, join through media_tags
       if (input.tagIds && input.tagIds.length > 0) {
@@ -74,16 +82,14 @@ export const mediaRouter = router({
             sql`(${mediaIdsWithTags})`
           )
         );
-
-        query = ctx.db
-          .select()
-          .from(media)
-          .where(and(...conditions))
-          .orderBy(asc(media.sortOrder), asc(media.filename))
-          .limit(input.limit + 1);
       }
 
-      const items = await query;
+      const items = await ctx.db
+        .select()
+        .from(media)
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
+        .orderBy(asc(media.sortOrder), asc(media.filename))
+        .limit(input.limit + 1);
       const hasMore = items.length > input.limit;
       const result = hasMore ? items.slice(0, input.limit) : items;
       const nextCursor = hasMore ? result[result.length - 1]?.id : undefined;

@@ -64,11 +64,27 @@ export const peopleRouter = router({
 
       if (!person[0]) return { person: null, items: [], nextCursor: undefined };
 
+      const conditions: any[] = [eq(mediaTags.tagId, person[0].id)];
+
+      if (input.cursor) {
+        const cursorItem = await ctx.db
+          .select({ sortOrder: media.sortOrder, filename: media.filename })
+          .from(media)
+          .where(eq(media.id, input.cursor))
+          .limit(1);
+
+        if (cursorItem[0]) {
+          conditions.push(
+            sql`(${media.sortOrder} > ${cursorItem[0].sortOrder} OR (${media.sortOrder} = ${cursorItem[0].sortOrder} AND ${media.filename} > ${cursorItem[0].filename}))`
+          );
+        }
+      }
+
       const items = await ctx.db
         .select({ media })
         .from(media)
         .innerJoin(mediaTags, eq(media.id, mediaTags.mediaId))
-        .where(eq(mediaTags.tagId, person[0].id))
+        .where(and(...conditions))
         .orderBy(asc(media.sortOrder), asc(media.filename))
         .limit(input.limit + 1);
 
