@@ -1,12 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { ClipViewer } from "@/components/gallery/clip-viewer";
 
-export default function ClipsPage() {
+function ClipsContent() {
+  const searchParams = useSearchParams();
+  const playId = searchParams.get("play");
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
     trpc.clips.list.useInfiniteQuery(
       { limit: 30 },
@@ -18,7 +21,11 @@ export default function ClipsPage() {
     [data]
   );
 
-  const [activeClipId, setActiveClipId] = useState<string | null>(null);
+  const [activeClipId, setActiveClipId] = useState<string | null>(playId);
+
+  useEffect(() => {
+    if (playId) setActiveClipId(playId);
+  }, [playId]);
 
   return (
     <div className="space-y-6">
@@ -70,6 +77,14 @@ export default function ClipsPage() {
         <ClipViewer clipId={activeClipId} onClose={() => setActiveClipId(null)} />
       )}
     </div>
+  );
+}
+
+export default function ClipsPage() {
+  return (
+    <Suspense fallback={<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="aspect-video rounded-xl" />)}</div>}>
+      <ClipsContent />
+    </Suspense>
   );
 }
 

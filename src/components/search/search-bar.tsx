@@ -24,6 +24,11 @@ export function SearchBar() {
     { enabled: open && query.length > 1 }
   );
 
+  const { data: clipResults } = trpc.clips.search.useQuery(
+    { query, limit: 3 },
+    { enabled: open && query.length > 1 }
+  );
+
   // Build flat list of results for keyboard navigation
   const allResults: { label: string; value: string; type: string; category?: string }[] = [];
   if (tagResults) {
@@ -33,6 +38,15 @@ export function SearchBar() {
         value: `/search?tag=${tag.slug}&category=${tag.category}`,
         type: "tag",
         category: tag.category,
+      });
+    }
+  }
+  if (clipResults) {
+    for (const clip of clipResults) {
+      allResults.push({
+        label: clip.title,
+        value: `/clips?play=${clip.id}`,
+        type: "clip",
       });
     }
   }
@@ -176,13 +190,37 @@ export function SearchBar() {
                   </button>
                 ))}
 
+                {clipResults && clipResults.length > 0 && (
+                  <div className="px-2 py-1.5 mt-1">
+                    <p className="text-xs font-medium text-muted-foreground">Clips</p>
+                  </div>
+                )}
+                {clipResults?.map((clip, i) => {
+                  const idx = (tagResults?.length || 0) + i;
+                  return (
+                    <button
+                      key={`clip-${clip.id}`}
+                      onClick={() => handleSelect(`/clips?play=${clip.id}`)}
+                      className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm ${
+                        selectedIndex === idx ? "bg-muted text-foreground" : "text-foreground/80 hover:bg-muted/50"
+                      }`}
+                    >
+                      <svg className="size-4 shrink-0 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z" />
+                      </svg>
+                      <span className="truncate">{clip.title}</span>
+                      <span className="text-[10px] text-muted-foreground ml-auto shrink-0">{clip.mediaTitle}</span>
+                    </button>
+                  );
+                })}
+
                 {mediaResults && mediaResults.length > 0 && (
                   <div className="px-2 py-1.5 mt-1">
                     <p className="text-xs font-medium text-muted-foreground">Photos & Videos</p>
                   </div>
                 )}
                 {mediaResults?.map((item, i) => {
-                  const idx = (tagResults?.length || 0) + i;
+                  const idx = (tagResults?.length || 0) + (clipResults?.length || 0) + i;
                   return (
                     <button
                       key={`media-${item.id}`}

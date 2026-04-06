@@ -78,6 +78,40 @@ export const clipsRouter = router({
       return { items: enriched, nextCursor };
     }),
 
+  // Search clips by title/description
+  search: protectedProcedure
+    .input(z.object({ query: z.string().min(1), limit: z.number().default(10) }))
+    .query(async ({ ctx, input }) => {
+      const results = await ctx.db
+        .select({
+          clip: clips,
+          mediaTitle: media.title,
+          mediaFilename: media.filename,
+          mediaThumbnailS3Key: media.thumbnailS3Key,
+          mediaSmallS3Key: media.smallS3Key,
+          mediaS3Key: media.s3Key,
+        })
+        .from(clips)
+        .innerJoin(media, eq(clips.mediaId, media.id))
+        .where(
+          sql`(${clips.title} ILIKE ${"%" + input.query + "%"} OR ${clips.description} ILIKE ${"%" + input.query + "%"})`
+        )
+        .orderBy(desc(clips.createdAt))
+        .limit(input.limit);
+
+      return Promise.all(
+        results.map(async (r) => {
+          const thumbKey = r.mediaThumbnailS3Key || r.mediaSmallS3Key || r.mediaS3Key;
+          const thumbnailUrl = await generateSignedUrl(thumbKey);
+          return {
+            ...r.clip,
+            mediaTitle: r.mediaTitle || r.mediaFilename,
+            thumbnailUrl,
+          };
+        })
+      );
+    }),
+
   // Get a single clip with signed video URL
   getById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
