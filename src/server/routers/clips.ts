@@ -220,6 +220,52 @@ export const clipsRouter = router({
       return clip;
     }),
 
+  // Update a clip
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        mediaId: z.string().uuid(),
+        title: z.string().min(1).max(500),
+        description: z.string().optional(),
+        startTime: z.number().min(0),
+        endTime: z.number().min(0),
+        tagNames: z.array(z.string()).optional(),
+        people: z.array(z.string()).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db
+        .update(clips)
+        .set({
+          title: input.title,
+          description: input.description || null,
+          startTime: Math.round(input.startTime),
+          endTime: Math.round(input.endTime),
+          updatedAt: new Date(),
+        })
+        .where(eq(clips.id, input.id));
+
+      // Replace tags: delete old, add new
+      await ctx.db.delete(clipTags).where(eq(clipTags.clipId, input.id));
+
+      for (const name of input.people || []) {
+        const slug = slugify(name);
+        await ctx.db.insert(tags).values({ name, slug, category: "person" }).onConflictDoNothing();
+        const tag = await ctx.db.select().from(tags).where(and(eq(tags.slug, slug), eq(tags.category, "person"))).limit(1);
+        if (tag[0]) await ctx.db.insert(clipTags).values({ clipId: input.id, tagId: tag[0].id }).onConflictDoNothing();
+      }
+
+      for (const name of input.tagNames || []) {
+        const slug = slugify(name);
+        await ctx.db.insert(tags).values({ name, slug, category: "event" }).onConflictDoNothing();
+        const tag = await ctx.db.select().from(tags).where(eq(tags.slug, slug)).limit(1);
+        if (tag[0]) await ctx.db.insert(clipTags).values({ clipId: input.id, tagId: tag[0].id }).onConflictDoNothing();
+      }
+
+      return { success: true };
+    }),
+
   // Delete a clip (creator only, enforced by RLS)
   delete: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))

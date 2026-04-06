@@ -10,10 +10,18 @@ interface ClipCreatorProps {
   mediaId: string;
   videoUrl: string;
   videoTitle: string;
+  clipId?: string; // If editing an existing clip
   onClose: () => void;
 }
 
-export function ClipCreator({ mediaId, videoUrl, videoTitle, onClose }: ClipCreatorProps) {
+export function ClipCreator({ mediaId, videoUrl, videoTitle, clipId, onClose }: ClipCreatorProps) {
+  const isEditing = !!clipId;
+  const { data: existingClip } = trpc.clips.getById.useQuery(
+    { id: clipId! },
+    { enabled: isEditing }
+  );
+  const [initialized, setInitialized] = useState(!isEditing);
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const [startTime, setStartTime] = useState(0);
@@ -29,15 +37,56 @@ export function ClipCreator({ mediaId, videoUrl, videoTitle, onClose }: ClipCrea
   const [saved, setSaved] = useState(false);
   const [dragging, setDragging] = useState<"start" | "end" | "playhead" | null>(null);
 
+  // Pre-populate from existing clip
+  useEffect(() => {
+    if (existingClip && !initialized) {
+      setTitle(existingClip.title);
+      setDescription(existingClip.description || "");
+      setStartTime(existingClip.startTime);
+      setEndTime(existingClip.endTime);
+      setPeopleInput(
+        existingClip.tags
+          .filter((t) => t.category === "person")
+          .map((t) => t.name)
+          .join(", ")
+      );
+      setTagInput(
+        existingClip.tags
+          .filter((t) => t.category !== "person")
+          .map((t) => t.name)
+          .join(", ")
+      );
+      setInitialized(true);
+      if (videoRef.current) videoRef.current.currentTime = existingClip.startTime;
+    }
+  }, [existingClip, initialized]);
+
   const utils = trpc.useUtils();
   const createClip = trpc.clips.create.useMutation({
     onSuccess: () => {
       utils.clips.list.invalidate();
+      utils.clips.getById.invalidate();
       setSaved(true);
       setSaving(false);
     },
     onError: () => setSaving(false),
   });
+  const updateClip = trpc.clips.update.useMutation({
+    onSuccess: () => {
+      utils.clips.list.invalidate();
+      utils.clips.getById.invalidate();
+      setSaved(true);
+      setSaving(false);
+    },
+    onError: () => setSaving(false),
+  });
+  const deleteClip = trpc.clips.delete.useMutation({
+    onSuccess: () => {
+      utils.clips.list.invalidate();
+      onClose();
+    },
+  });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -144,7 +193,7 @@ export function ClipCreator({ mediaId, videoUrl, videoTitle, onClose }: ClipCrea
   const handleSave = async () => {
     if (!title.trim() || endTime <= startTime) return;
     setSaving(true);
-    await createClip.mutateAsync({
+    const payload = {
       mediaId,
       title: title.trim(),
       description: description.trim() || undefined,
@@ -152,7 +201,16 @@ export function ClipCreator({ mediaId, videoUrl, videoTitle, onClose }: ClipCrea
       endTime: Math.round(endTime),
       tagNames: tagInput.split(",").map((t) => t.trim()).filter(Boolean),
       people: peopleInput.split(",").map((p) => p.trim()).filter(Boolean),
-    });
+    };
+    if (isEditing && clipId) {
+      await updateClip.mutateAsync({ id: clipId, ...payload });
+    } else {
+      await createClip.mutateAsync(payload);
+    }
+  };
+
+  const handleDelete = () => {
+    if (clipId) deleteClip.mutate({ id: clipId });
   };
 
   const formatTime = (s: number) => {
@@ -175,7 +233,7 @@ export function ClipCreator({ mediaId, videoUrl, videoTitle, onClose }: ClipCrea
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
-          <span className="text-sm font-medium">Create Clip</span>
+          <span className="text-sm font-medium">{isEditing ? "Edit Clip" : "Create Clip"}</span>
           <span className="text-xs text-muted-foreground">from {videoTitle}</span>
         </div>
         <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-mono">
@@ -334,33 +392,70 @@ export function ClipCreator({ mediaId, videoUrl, videoTitle, onClose }: ClipCrea
           </div>
 
           {/* Save button */}
-          <div className="p-4 border-t">
+          <div className="p-4 border-t space-y-2">
             {saved ? (
               <div className="text-center space-y-2">
-                <p className="text-sm text-green-500 font-medium">Clip created!</p>
+                <p className="text-sm text-green-500 font-medium">
+                  {isEditing ? "Clip updated!" : "Clip created!"}
+                </p>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1" onClick={() => {
-                    setSaved(false);
-                    setTitle("");
-                    setDescription("");
-                    setTagInput("");
-                    setPeopleInput("");
-                  }}>
-                    Create another
-                  </Button>
+                  {!isEditing && (
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => {
+                      setSaved(false);
+                      setTitle("");
+                      setDescription("");
+                      setTagInput("");
+                      setPeopleInput("");
+                    }}>
+                      Create another
+                    </Button>
+                  )}
                   <Button size="sm" className="flex-1" onClick={onClose}>
                     Done
                   </Button>
                 </div>
               </div>
             ) : (
-              <Button
-                className="w-full"
-                onClick={handleSave}
-                disabled={!title.trim() || endTime <= startTime || saving}
-              >
-                {saving ? "Saving..." : "Create Clip"}
-              </Button>
+              <>
+                <Button
+                  className="w-full"
+                  onClick={handleSave}
+                  disabled={!title.trim() || endTime <= startTime || saving}
+                >
+                  {saving ? "Saving..." : isEditing ? "Save Changes" : "Create Clip"}
+                </Button>
+                {isEditing && (
+                  showDeleteConfirm ? (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="flex-1"
+                        onClick={handleDelete}
+                      >
+                        Confirm Delete
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => setShowDeleteConfirm(false)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-destructive hover:text-destructive"
+                      onClick={() => setShowDeleteConfirm(true)}
+                    >
+                      Delete Clip
+                    </Button>
+                  )
+                )}
+              </>
             )}
           </div>
         </div>

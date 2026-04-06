@@ -87,8 +87,9 @@ export function ClipViewer({ clipId, onClose }: ClipViewerProps) {
     return (
       <ClipCreator
         mediaId={clip.mediaId}
-        videoUrl={`${clip.videoUrl}#t=${clip.startTime}`}
+        videoUrl={clip.videoUrl}
         videoTitle={clip.media.title || clip.media.filename}
+        clipId={clipId}
         onClose={() => setShowEditor(false)}
       />
     );
