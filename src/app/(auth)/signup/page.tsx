@@ -59,27 +59,9 @@ export default function SignupPage() {
       setError(error.message);
       setLoading(false);
     } else {
-      setSuccess(true);
+      router.push("/");
+      router.refresh();
     }
-  }
-
-  if (success) {
-    return (
-      <Card>
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Check your email</CardTitle>
-          <CardDescription>
-            We sent a confirmation link to <strong>{email}</strong>. Click the
-            link to activate your account.
-          </CardDescription>
-        </CardHeader>
-        <CardFooter className="justify-center">
-          <Link href="/login" className="text-sm text-primary underline-offset-4 hover:underline">
-            Back to login
-          </Link>
-        </CardFooter>
-      </Card>
-    );
   }
 
   return (

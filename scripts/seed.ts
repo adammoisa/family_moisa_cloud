@@ -30,7 +30,7 @@ const S3_PREFIX = "Family/family.moisa.cloud/input";
 const S3_THUMBS_PREFIX = "Family/family.moisa.cloud/media/thumbs";
 const S3_SMALL_PREFIX = "Family/family.moisa.cloud/media/small";
 
-const sql = postgres(DATABASE_URL, { ssl: "require", max: 1 });
+const sql = postgres(DATABASE_URL, { ssl: "require", max: 1, prepare: false });
 const db = drizzle(sql, { schema });
 
 // ─── Types ───────────────────────────────────────────────

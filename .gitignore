@@ -36,6 +36,9 @@ yarn-error.log*
 # mcp config
 .mcp.json
 
+# generated seed SQL
+scripts/seed-sql/
+
 # vercel
 .vercel
 
