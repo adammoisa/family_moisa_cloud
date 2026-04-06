@@ -316,17 +316,17 @@ export function ClipCreator({ mediaId, videoUrl, videoTitle, onClose }: ClipCrea
               />
             </div>
 
-            {/* Clip info */}
-            <div className="rounded-lg bg-muted/50 p-3 space-y-1 text-xs">
-              <div className="flex justify-between">
+            {/* Clip info - editable in/out points */}
+            <div className="rounded-lg bg-muted/50 p-3 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">In point</span>
-                <span className="font-mono">{formatTime(startTime)}</span>
+                <TimeInput value={startTime} onChange={(t) => { setStartTime(t); if (videoRef.current) videoRef.current.currentTime = t; }} max={endTime - 1} />
               </div>
-              <div className="flex justify-between">
+              <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Out point</span>
-                <span className="font-mono">{formatTime(endTime)}</span>
+                <TimeInput value={endTime} onChange={(t) => setEndTime(t)} min={startTime + 1} max={duration} />
               </div>
-              <div className="flex justify-between border-t pt-1 mt-1">
+              <div className="flex justify-between border-t pt-1.5 mt-1">
                 <span className="text-muted-foreground">Duration</span>
                 <span className="font-mono font-medium">{formatTime(endTime - startTime)}</span>
               </div>
@@ -366,5 +366,75 @@ export function ClipCreator({ mediaId, videoUrl, videoTitle, onClose }: ClipCrea
         </div>
       </div>
     </div>
+  );
+}
+
+function TimeInput({
+  value,
+  onChange,
+  min = 0,
+  max = Infinity,
+}: {
+  value: number;
+  onChange: (seconds: number) => void;
+  min?: number;
+  max?: number;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState("");
+
+  const formatTime = (s: number) => {
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = Math.round(s % 60);
+    if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+    return `${m}:${String(sec).padStart(2, "0")}`;
+  };
+
+  const parseTime = (str: string): number | null => {
+    const parts = str.trim().split(":").map(Number);
+    if (parts.some(isNaN)) return null;
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    if (parts.length === 1) return parts[0];
+    return null;
+  };
+
+  const handleStart = () => {
+    setText(formatTime(value));
+    setEditing(true);
+  };
+
+  const handleConfirm = () => {
+    const parsed = parseTime(text);
+    if (parsed !== null) {
+      onChange(Math.max(min, Math.min(max, parsed)));
+    }
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        className="w-20 bg-background border rounded px-1.5 py-0.5 text-xs font-mono text-right outline-none focus:ring-1 focus:ring-primary"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={handleConfirm}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") handleConfirm();
+          if (e.key === "Escape") setEditing(false);
+        }}
+      />
+    );
+  }
+
+  return (
+    <button
+      onClick={handleStart}
+      className="font-mono hover:bg-muted rounded px-1.5 py-0.5 transition-colors cursor-text"
+    >
+      {formatTime(value)}
+    </button>
   );
 }
