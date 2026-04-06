@@ -1,0 +1,157 @@
+import {
+  pgTable,
+  uuid,
+  text,
+  varchar,
+  integer,
+  boolean,
+  timestamp,
+  pgEnum,
+  index,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+
+// ─── Enums ───────────────────────────────────────────────
+
+export const mediaTypeEnum = pgEnum("media_type", ["photo", "video"]);
+export const tagCategoryEnum = pgEnum("tag_category", [
+  "person",
+  "location",
+  "event",
+  "year",
+  "activity",
+  "other",
+]);
+
+// ─── Auth Whitelist ──────────────────────────────────────
+
+export const emailWhitelist = pgTable("email_whitelist", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  name: varchar("name", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ─── User Profiles ───────────────────────────────────────
+
+export const profiles = pgTable("profiles", {
+  id: uuid("id").primaryKey(), // matches auth.users.id
+  email: varchar("email", { length: 255 }).notNull(),
+  name: varchar("name", { length: 255 }),
+  avatarUrl: text("avatar_url"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ─── Albums ──────────────────────────────────────────────
+
+export const albums = pgTable(
+  "albums",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    slug: varchar("slug", { length: 500 }).notNull().unique(),
+    title: varchar("title", { length: 500 }).notNull(),
+    description: text("description"),
+    parentId: uuid("parent_id"),
+    s3Prefix: text("s3_prefix").notNull(),
+    coverMediaId: uuid("cover_media_id"),
+    sortOrder: integer("sort_order").default(0),
+    mediaCount: integer("media_count").default(0),
+    dateStart: timestamp("date_start"),
+    dateEnd: timestamp("date_end"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("albums_parent_id_idx").on(table.parentId),
+    index("albums_slug_idx").on(table.slug),
+  ]
+);
+
+// ─── Media Items ─────────────────────────────────────────
+
+export const media = pgTable(
+  "media",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    albumId: uuid("album_id")
+      .references(() => albums.id)
+      .notNull(),
+    type: mediaTypeEnum("type").notNull(),
+    s3Key: text("s3_key").notNull().unique(),
+    thumbnailS3Key: text("thumbnail_s3_key"),
+    smallS3Key: text("small_s3_key"),
+    filename: varchar("filename", { length: 1000 }).notNull(),
+    title: varchar("title", { length: 1000 }),
+    mimeType: varchar("mime_type", { length: 100 }),
+    fileSize: integer("file_size"),
+    width: integer("width"),
+    height: integer("height"),
+    duration: integer("duration"),
+    dateTaken: timestamp("date_taken"),
+    sortOrder: integer("sort_order").default(0),
+    searchText: text("search_text"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("media_album_id_idx").on(table.albumId),
+    index("media_type_idx").on(table.type),
+    index("media_date_taken_idx").on(table.dateTaken),
+    index("media_search_gin_idx").using(
+      "gin",
+      sql`to_tsvector('english', coalesce(${table.searchText}, ''))`
+    ),
+  ]
+);
+
+// ─── Tags ────────────────────────────────────────────────
+
+export const tags = pgTable(
+  "tags",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: varchar("name", { length: 255 }).notNull(),
+    slug: varchar("slug", { length: 255 }).notNull(),
+    category: tagCategoryEnum("category").notNull(),
+  },
+  (table) => [
+    uniqueIndex("tags_slug_category_idx").on(table.slug, table.category),
+  ]
+);
+
+// ─── Media-Tags Join ─────────────────────────────────────
+
+export const mediaTags = pgTable(
+  "media_tags",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    mediaId: uuid("media_id")
+      .references(() => media.id, { onDelete: "cascade" })
+      .notNull(),
+    tagId: uuid("tag_id")
+      .references(() => tags.id, { onDelete: "cascade" })
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("media_tags_unique_idx").on(table.mediaId, table.tagId),
+    index("media_tags_tag_id_idx").on(table.tagId),
+    index("media_tags_media_id_idx").on(table.mediaId),
+  ]
+);
+
+// ─── Album-Tags Join ─────────────────────────────────────
+
+export const albumTags = pgTable(
+  "album_tags",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    albumId: uuid("album_id")
+      .references(() => albums.id, { onDelete: "cascade" })
+      .notNull(),
+    tagId: uuid("tag_id")
+      .references(() => tags.id, { onDelete: "cascade" })
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("album_tags_unique_idx").on(table.albumId, table.tagId),
+  ]
+);
