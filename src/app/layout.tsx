@@ -11,8 +11,30 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Moisa Family Gallery",
-  description: "Family photo and video gallery",
+  title: {
+    default: "Moisa Family Gallery",
+    template: "%s | Moisa Family Gallery",
+  },
+  description:
+    "A private collection of family memories — photos and videos spanning generations of the Moisa family.",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
+  openGraph: {
+    title: "Moisa Family Gallery",
+    description:
+      "A private collection of family memories — photos and videos spanning generations of the Moisa family.",
+    images: [{ url: "/og-image.png", width: 1200, height: 630 }],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Moisa Family Gallery",
+    description:
+      "A private collection of family memories — photos and videos spanning generations of the Moisa family.",
+    images: ["/og-image.png"],
+  },
 };
 
 export default function RootLayout({
