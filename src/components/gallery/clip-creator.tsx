@@ -12,9 +12,10 @@ interface ClipCreatorProps {
   videoTitle: string;
   clipId?: string; // If editing an existing clip
   onClose: () => void;
+  onDeleted?: () => void; // Called after delete to close parent viewer too
 }
 
-export function ClipCreator({ mediaId, videoUrl, videoTitle, clipId, onClose }: ClipCreatorProps) {
+export function ClipCreator({ mediaId, videoUrl, videoTitle, clipId, onClose, onDeleted }: ClipCreatorProps) {
   const isEditing = !!clipId;
   const { data: existingClip } = trpc.clips.getById.useQuery(
     { id: clipId! },
@@ -84,6 +85,7 @@ export function ClipCreator({ mediaId, videoUrl, videoTitle, clipId, onClose }: 
     onSuccess: () => {
       utils.clips.list.invalidate();
       onClose();
+      onDeleted?.();
     },
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);

@@ -91,6 +91,7 @@ export function ClipViewer({ clipId, onClose }: ClipViewerProps) {
         videoTitle={clip.media.title || clip.media.filename}
         clipId={clipId}
         onClose={() => setShowEditor(false)}
+        onDeleted={onClose}
       />
     );
   }
