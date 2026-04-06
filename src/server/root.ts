@@ -5,6 +5,7 @@ import { mediaRouter } from "./routers/media";
 import { tagsRouter } from "./routers/tags";
 import { peopleRouter } from "./routers/people";
 import { favoritesRouter } from "./routers/favorites";
+import { clipsRouter } from "./routers/clips";
 
 export const appRouter = router({
   auth: authRouter,
@@ -13,6 +14,7 @@ export const appRouter = router({
   tags: tagsRouter,
   people: peopleRouter,
   favorites: favoritesRouter,
+  clips: clipsRouter,
 });
 
 export type AppRouter = typeof appRouter;

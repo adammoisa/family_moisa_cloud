@@ -25,6 +25,7 @@ const navItems = [
   { title: "People", href: "/people", icon: "users" },
   { title: "Timeline", href: "/timeline", icon: "clock" },
   { title: "Favorites", href: "/favorites", icon: "heart" },
+  { title: "Clips", href: "/clips", icon: "scissors" },
 ];
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -56,6 +57,11 @@ const iconMap: Record<string, React.ReactNode> = {
   heart: (
     <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+    </svg>
+  ),
+  scissors: (
+    <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z" />
     </svg>
   ),
 };

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
 import { VideoPlayer } from "./video-player";
 import { FavoriteButton } from "./favorite-button";
+import { ClipCreator } from "./clip-creator";
 
 interface LightboxProps {
   mediaId: string;
@@ -15,6 +16,7 @@ interface LightboxProps {
 
 export function Lightbox({ mediaId, albumId, onClose, onNavigate }: LightboxProps) {
   const { data } = trpc.media.getById.useQuery({ id: mediaId });
+  const [showClipCreator, setShowClipCreator] = useState(false);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -43,6 +45,7 @@ export function Lightbox({ mediaId, albumId, onClose, onNavigate }: LightboxProp
   }
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex flex-col bg-black/95" onClick={onClose}>
       {/* Top bar */}
       <div
@@ -54,6 +57,20 @@ export function Lightbox({ mediaId, albumId, onClose, onNavigate }: LightboxProp
         </h2>
         <div className="flex items-center gap-2">
           <FavoriteButton mediaId={mediaId} variant="lightbox" />
+          {data.type === "video" && data.fullUrl && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowClipCreator(true);
+              }}
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z" />
+              </svg>
+              Create Clip
+            </button>
+          )}
           {data.fullUrl && (
             <a
               href={data.fullUrl}
@@ -130,5 +147,16 @@ export function Lightbox({ mediaId, albumId, onClose, onNavigate }: LightboxProp
         </div>
       )}
     </div>
+
+      {/* Clip Creator */}
+      {showClipCreator && data.fullUrl && (
+        <ClipCreator
+          mediaId={mediaId}
+          videoUrl={data.fullUrl}
+          videoTitle={data.title || data.filename}
+          onClose={() => setShowClipCreator(false)}
+        />
+      )}
+    </>
   );
 }

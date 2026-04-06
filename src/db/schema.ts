@@ -157,6 +157,46 @@ export const albumTags = pgTable(
   ]
 );
 
+// ─── Clips ───────────────────────────────────────────────
+
+export const clips = pgTable(
+  "clips",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    mediaId: uuid("media_id")
+      .references(() => media.id, { onDelete: "cascade" })
+      .notNull(),
+    title: varchar("title", { length: 500 }).notNull(),
+    description: text("description"),
+    startTime: integer("start_time").notNull(), // stored as seconds (float in DB)
+    endTime: integer("end_time").notNull(),
+    createdBy: uuid("created_by").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("clips_media_id_idx").on(table.mediaId),
+    index("clips_created_by_idx").on(table.createdBy),
+  ]
+);
+
+export const clipTags = pgTable(
+  "clip_tags",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    clipId: uuid("clip_id")
+      .references(() => clips.id, { onDelete: "cascade" })
+      .notNull(),
+    tagId: uuid("tag_id")
+      .references(() => tags.id, { onDelete: "cascade" })
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("clip_tags_unique").on(table.clipId, table.tagId),
+    index("clip_tags_clip_id_idx").on(table.clipId),
+  ]
+);
+
 // ─── Favorites ───────────────────────────────────────────
 
 export const favorites = pgTable(
