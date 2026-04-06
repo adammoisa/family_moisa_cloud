@@ -5,25 +5,38 @@ import { Suspense } from "react";
 import { trpc } from "@/lib/trpc";
 import { MasonryGrid } from "@/components/gallery/masonry-grid";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 
 function SearchResults() {
   const searchParams = useSearchParams();
   const query = searchParams.get("q") || "";
-  const tag = searchParams.get("tag");
+  const tagSlug = searchParams.get("tag");
+  const tagCategory = searchParams.get("category");
 
+  // Full-text search
   const { data: searchResults, isLoading: searchLoading } =
     trpc.media.search.useQuery(
       { query, limit: 60 },
       { enabled: query.length > 0 }
     );
 
+  // Tag-based search: first look up the tag by slug to get its ID
+  const { data: allTags } = trpc.tags.autocomplete.useQuery(
+    { query: tagSlug || "" },
+    { enabled: !!tagSlug }
+  );
+
+  const matchedTag = allTags?.find(
+    (t) => t.slug === tagSlug && (!tagCategory || t.category === tagCategory)
+  );
+
   const { data: tagResults, isLoading: tagLoading } =
     trpc.media.list.useQuery(
-      { tagIds: tag ? [tag] : undefined, limit: 60 },
-      { enabled: !!tag }
+      { tagIds: matchedTag ? [matchedTag.id] : undefined, limit: 60 },
+      { enabled: !!matchedTag }
     );
 
-  const isLoading = searchLoading || tagLoading;
+  const isLoading = query ? searchLoading : tagSlug ? tagLoading : false;
   const items = query
     ? searchResults || []
     : tagResults?.items || [];
@@ -38,6 +51,12 @@ function SearchResults() {
           <p className="text-muted-foreground mt-1">
             Results for &quot;{query}&quot;
           </p>
+        )}
+        {matchedTag && (
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-muted-foreground">Filtered by:</span>
+            <Badge variant="secondary">{matchedTag.name}</Badge>
+          </div>
         )}
       </div>
 
@@ -60,7 +79,9 @@ function SearchResults() {
           }))}
         />
       ) : (
-        <p className="text-muted-foreground">No results found.</p>
+        <p className="text-muted-foreground">
+          {query || tagSlug ? "No results found." : "Enter a search query to get started."}
+        </p>
       )}
     </div>
   );
