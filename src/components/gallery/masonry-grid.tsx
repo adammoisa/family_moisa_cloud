@@ -10,6 +10,7 @@ interface MediaItem {
   filename: string;
   type: "photo" | "video";
   thumbnailUrl: string;
+  thumbnailFrameUrls?: string[];
   albumId: string;
 }
 
@@ -55,6 +56,7 @@ export function MasonryGrid({
             filename={item.filename}
             type={item.type}
             thumbnailUrl={item.thumbnailUrl}
+            thumbnailFrameUrls={item.thumbnailFrameUrls}
             onClick={() => setLightboxId(item.id)}
           />
         ))}

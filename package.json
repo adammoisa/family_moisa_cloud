@@ -11,7 +11,8 @@
     "db:push": "drizzle-kit push",
     "db:migrate": "bun run scripts/migrate.ts",
     "seed": "bun run scripts/seed.ts",
-    "generate-thumbnails": "bun run scripts/generate-thumbnails.ts"
+    "generate-thumbnails": "bun run scripts/generate-thumbnails.ts",
+    "generate-video-thumbnails": "bun run scripts/generate-video-thumbnails.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1024.0",

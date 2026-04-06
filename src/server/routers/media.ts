@@ -4,6 +4,29 @@ import { media, mediaTags, tags } from "@/db/schema";
 import { eq, and, inArray, sql, asc, desc } from "drizzle-orm";
 import { generateSignedUrl } from "../services/s3";
 
+async function enrichMediaWithUrls<T extends { thumbnailS3Key: string | null; smallS3Key: string | null; s3Key: string; thumbnailFrames: string | null; type: "photo" | "video" }>(items: T[]) {
+  return Promise.all(
+    items.map(async (item) => {
+      const thumbnailKey = item.thumbnailS3Key || item.smallS3Key || item.s3Key;
+      const thumbnailUrl = await generateSignedUrl(thumbnailKey);
+
+      let thumbnailFrameUrls: string[] = [];
+      if (item.type === "video" && item.thumbnailFrames) {
+        try {
+          const frames: string[] = JSON.parse(item.thumbnailFrames);
+          if (frames.length > 0) {
+            thumbnailFrameUrls = await Promise.all(
+              frames.map((key) => generateSignedUrl(key))
+            );
+          }
+        } catch {}
+      }
+
+      return { ...item, thumbnailUrl, thumbnailFrameUrls };
+    })
+  );
+}
+
 export const mediaRouter = router({
   list: protectedProcedure
     .input(
@@ -65,14 +88,7 @@ export const mediaRouter = router({
       const result = hasMore ? items.slice(0, input.limit) : items;
       const nextCursor = hasMore ? result[result.length - 1]?.id : undefined;
 
-      const itemsWithUrls = await Promise.all(
-        result.map(async (item) => {
-          const thumbnailKey =
-            item.thumbnailS3Key || item.smallS3Key || item.s3Key;
-          const thumbnailUrl = await generateSignedUrl(thumbnailKey);
-          return { ...item, thumbnailUrl };
-        })
-      );
+      const itemsWithUrls = await enrichMediaWithUrls(result);
 
       return { items: itemsWithUrls, nextCursor };
     }),
@@ -145,14 +161,7 @@ export const mediaRouter = router({
         )
         .limit(input.limit);
 
-      const itemsWithUrls = await Promise.all(
-        results.map(async (item) => {
-          const thumbnailKey =
-            item.thumbnailS3Key || item.smallS3Key || item.s3Key;
-          const thumbnailUrl = await generateSignedUrl(thumbnailKey);
-          return { ...item, thumbnailUrl };
-        })
-      );
+      const itemsWithUrls = await enrichMediaWithUrls(results);
 
       return itemsWithUrls;
     }),

@@ -66,6 +66,7 @@ export default function PersonDetailPage({
             filename: m.filename,
             type: m.type,
             thumbnailUrl: m.thumbnailUrl,
+            thumbnailFrameUrls: m.thumbnailFrameUrls,
             albumId: m.albumId,
           }))}
           hasMore={!!data.nextCursor}

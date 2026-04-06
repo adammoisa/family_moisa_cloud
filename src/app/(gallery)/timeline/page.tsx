@@ -71,6 +71,7 @@ function YearSection({
             filename: m.filename,
             type: m.type,
             thumbnailUrl: m.thumbnailUrl,
+            thumbnailFrameUrls: m.thumbnailFrameUrls,
             albumId: m.albumId,
           }))}
         />

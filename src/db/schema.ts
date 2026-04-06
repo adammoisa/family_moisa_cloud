@@ -89,6 +89,7 @@ export const media = pgTable(
     duration: integer("duration"),
     dateTaken: timestamp("date_taken"),
     sortOrder: integer("sort_order").default(0),
+    thumbnailFrames: text("thumbnail_frames"), // JSON array of S3 keys for video preview frames
     searchText: text("search_text"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },

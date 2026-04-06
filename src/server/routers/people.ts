@@ -83,7 +83,20 @@ export const peopleRouter = router({
           const thumbnailKey =
             item.thumbnailS3Key || item.smallS3Key || item.s3Key;
           const thumbnailUrl = await generateSignedUrl(thumbnailKey);
-          return { ...item, thumbnailUrl };
+
+          let thumbnailFrameUrls: string[] = [];
+          if (item.type === "video" && item.thumbnailFrames) {
+            try {
+              const frames: string[] = JSON.parse(item.thumbnailFrames);
+              if (frames.length > 0) {
+                thumbnailFrameUrls = await Promise.all(
+                  frames.map((key) => generateSignedUrl(key))
+                );
+              }
+            } catch {}
+          }
+
+          return { ...item, thumbnailUrl, thumbnailFrameUrls };
         })
       );
 

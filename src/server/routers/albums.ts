@@ -97,13 +97,26 @@ export const albumsRouter = router({
       const items = hasMore ? mediaItems.slice(0, input.limit) : mediaItems;
       const nextCursor = hasMore ? items[items.length - 1]?.id : undefined;
 
-      // Batch signed URLs for thumbnails
+      // Batch signed URLs for thumbnails + video frames
       const itemsWithUrls = await Promise.all(
         items.map(async (item) => {
           const thumbnailKey =
             item.thumbnailS3Key || item.smallS3Key || item.s3Key;
           const thumbnailUrl = await generateSignedUrl(thumbnailKey);
-          return { ...item, thumbnailUrl };
+
+          let thumbnailFrameUrls: string[] = [];
+          if (item.type === "video" && item.thumbnailFrames) {
+            try {
+              const frames: string[] = JSON.parse(item.thumbnailFrames);
+              if (frames.length > 0) {
+                thumbnailFrameUrls = await Promise.all(
+                  frames.map((key) => generateSignedUrl(key))
+                );
+              }
+            } catch {}
+          }
+
+          return { ...item, thumbnailUrl, thumbnailFrameUrls };
         })
       );
 
