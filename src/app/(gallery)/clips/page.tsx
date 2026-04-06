@@ -1,12 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
-import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { ClipViewer } from "@/components/gallery/clip-viewer";
 
 export default function ClipsPage() {
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
@@ -20,15 +18,15 @@ export default function ClipsPage() {
     [data]
   );
 
+  const [activeClipId, setActiveClipId] = useState<string | null>(null);
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Clips</h1>
-          <p className="text-muted-foreground mt-1">
-            Curated segments from family videos
-          </p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Clips</h1>
+        <p className="text-muted-foreground mt-1">
+          Curated segments from family videos
+        </p>
       </div>
 
       {isLoading ? (
@@ -41,7 +39,7 @@ export default function ClipsPage() {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {allClips.map((clip) => (
-              <ClipCard key={clip.id} clip={clip} />
+              <ClipCard key={clip.id} clip={clip} onClick={() => setActiveClipId(clip.id)} />
             ))}
           </div>
           {hasNextPage && (
@@ -67,12 +65,17 @@ export default function ClipsPage() {
           </p>
         </div>
       )}
+
+      {activeClipId && (
+        <ClipViewer clipId={activeClipId} onClose={() => setActiveClipId(null)} />
+      )}
     </div>
   );
 }
 
 function ClipCard({
   clip,
+  onClick,
 }: {
   clip: {
     id: string;
@@ -84,6 +87,7 @@ function ClipCard({
     thumbnailUrl: string;
     tags: { id: string; name: string; category: string }[];
   };
+  onClick: () => void;
 }) {
   const [loaded, setLoaded] = useState(false);
   const duration = clip.endTime - clip.startTime;
@@ -94,9 +98,9 @@ function ClipCard({
   };
 
   return (
-    <Link
-      href={`/clips/${clip.id}`}
-      className="group relative overflow-hidden rounded-xl bg-muted aspect-video block"
+    <button
+      onClick={onClick}
+      className="group relative overflow-hidden rounded-xl bg-muted aspect-video block w-full text-left"
     >
       {!loaded && <Skeleton className="absolute inset-0" />}
       <img
@@ -106,13 +110,9 @@ function ClipCard({
         className={`h-full w-full object-cover transition-transform duration-300 group-hover:scale-105 ${loaded ? "opacity-100" : "opacity-0"}`}
         onLoad={() => setLoaded(true)}
       />
-
-      {/* Duration badge */}
       <div className="absolute top-2 right-2 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-mono text-white">
         {formatTime(duration)}
       </div>
-
-      {/* Play icon */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div className="rounded-full bg-black/60 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <svg className="size-6 text-white" fill="currentColor" viewBox="0 0 24 24">
@@ -120,8 +120,6 @@ function ClipCard({
           </svg>
         </div>
       </div>
-
-      {/* Info */}
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-3">
         <h3 className="text-sm font-medium text-white truncate">{clip.title}</h3>
         <p className="text-[11px] text-white/60 truncate mt-0.5">
@@ -137,6 +135,6 @@ function ClipCard({
           </div>
         )}
       </div>
-    </Link>
+    </button>
   );
 }
