@@ -38,6 +38,10 @@ export function ClipCreator({ mediaId, videoUrl, videoTitle, clipId, onClose, on
   const [saved, setSaved] = useState(false);
   const [dragging, setDragging] = useState<"start" | "end" | "playhead" | null>(null);
 
+  // Zoom: viewStart/viewEnd define the visible time range
+  const [viewStart, setViewStart] = useState(0);
+  const [viewEnd, setViewEnd] = useState(0); // 0 = full duration (set on load)
+
   // Pre-populate from existing clip
   useEffect(() => {
     if (existingClip && !initialized) {
@@ -111,8 +115,10 @@ export function ClipCreator({ mediaId, videoUrl, videoTitle, clipId, onClose, on
 
   const handleVideoLoaded = () => {
     if (videoRef.current) {
-      setDuration(videoRef.current.duration);
-      setEndTime(Math.min(30, videoRef.current.duration));
+      const dur = videoRef.current.duration;
+      setDuration(dur);
+      setViewEnd(dur);
+      setEndTime(Math.min(30, dur));
     }
   };
 
@@ -150,13 +156,43 @@ export function ClipCreator({ mediaId, videoUrl, videoTitle, clipId, onClose, on
     }
   }, [playing, currentTime, endTime]);
 
-  // Timeline drag handling
+  // Zoom helpers
+  const vStart = viewStart;
+  const vEnd = viewEnd || duration;
+  const vDuration = vEnd - vStart;
+
+  const zoomToSelection = () => {
+    const pad = Math.max((endTime - startTime) * 2, 10);
+    setViewStart(Math.max(0, startTime - pad));
+    setViewEnd(Math.min(duration, endTime + pad));
+  };
+
+  const zoomIn = () => {
+    const center = (vStart + vEnd) / 2;
+    const half = vDuration / 4;
+    setViewStart(Math.max(0, center - half));
+    setViewEnd(Math.min(duration, center + half));
+  };
+
+  const zoomOut = () => {
+    const center = (vStart + vEnd) / 2;
+    const half = vDuration;
+    setViewStart(Math.max(0, center - half));
+    setViewEnd(Math.min(duration, center + half));
+  };
+
+  const zoomReset = () => {
+    setViewStart(0);
+    setViewEnd(duration);
+  };
+
+  // Timeline drag handling (uses zoom view range)
   const getTimeFromX = useCallback((clientX: number) => {
-    if (!timelineRef.current || duration === 0) return 0;
+    if (!timelineRef.current || vDuration === 0) return 0;
     const rect = timelineRef.current.getBoundingClientRect();
     const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    return pct * duration;
-  }, [duration]);
+    return vStart + pct * vDuration;
+  }, [vStart, vDuration]);
 
   const handleTimelineMouseDown = (e: React.MouseEvent, type: "start" | "end" | "playhead") => {
     e.preventDefault();
@@ -223,7 +259,7 @@ export function ClipCreator({ mediaId, videoUrl, videoTitle, clipId, onClose, on
     return `${m}:${String(sec).padStart(2, "0")}`;
   };
 
-  const pct = (t: number) => duration > 0 ? `${(t / duration) * 100}%` : "0%";
+  const pct = (t: number) => vDuration > 0 ? `${((t - vStart) / vDuration) * 100}%` : "0%";
 
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
@@ -268,18 +304,29 @@ export function ClipCreator({ mediaId, videoUrl, videoTitle, clipId, onClose, on
           <div className="border-t bg-muted/30 px-4 py-3 shrink-0">
             {/* Time display */}
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-mono text-muted-foreground">{formatTime(currentTime)}</span>
+              <span className="text-xs font-mono text-muted-foreground">{formatTime(vStart)}</span>
               <span className="text-xs font-mono text-primary">
-                Clip: {formatTime(startTime)} - {formatTime(endTime)} ({formatTime(endTime - startTime)})
+                {formatTime(currentTime)} &middot; Clip: {formatTime(startTime)} - {formatTime(endTime)} ({formatTime(endTime - startTime)})
               </span>
-              <span className="text-xs font-mono text-muted-foreground">{formatTime(duration)}</span>
+              <span className="text-xs font-mono text-muted-foreground">{formatTime(vEnd)}</span>
             </div>
 
             {/* Timeline bar */}
             <div
               ref={timelineRef}
-              className="relative h-10 bg-muted rounded cursor-pointer select-none"
+              className="relative h-10 bg-muted rounded cursor-pointer select-none overflow-hidden"
               onClick={handleTimelineClick}
+              onWheel={(e) => {
+                e.preventDefault();
+                const mouseTime = getTimeFromX(e.clientX);
+                const factor = e.deltaY > 0 ? 1.3 : 0.7;
+                const newDur = Math.max(5, Math.min(duration, vDuration * factor));
+                const ratio = (mouseTime - vStart) / vDuration;
+                const newStart = Math.max(0, mouseTime - ratio * newDur);
+                const newEnd = Math.min(duration, newStart + newDur);
+                setViewStart(newStart);
+                setViewEnd(newEnd);
+              }}
             >
               {/* Selected range */}
               <div
@@ -315,20 +362,43 @@ export function ClipCreator({ mediaId, videoUrl, videoTitle, clipId, onClose, on
               </div>
             </div>
 
-            {/* Playback controls */}
-            <div className="flex items-center gap-2 mt-2">
-              <Button variant="outline" size="sm" onClick={handleSetStart} className="text-xs">
-                <span className="text-green-500 mr-1">|</span> Set In
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleSetEnd} className="text-xs">
-                Set Out <span className="text-red-500 ml-1">|</span>
-              </Button>
-              <Button variant="outline" size="sm" onClick={togglePlay} className="text-xs">
-                {playing ? "Pause" : "Play"}
-              </Button>
-              <Button variant="outline" size="sm" onClick={handlePreview} className="text-xs">
-                Preview Clip
-              </Button>
+            {/* Playback + zoom controls */}
+            <div className="flex items-center justify-between mt-2">
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handleSetStart} className="text-xs">
+                  <span className="text-green-500 mr-1">|</span> Set In
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleSetEnd} className="text-xs">
+                  Set Out <span className="text-red-500 ml-1">|</span>
+                </Button>
+                <Button variant="outline" size="sm" onClick={togglePlay} className="text-xs">
+                  {playing ? "Pause" : "Play"}
+                </Button>
+                <Button variant="outline" size="sm" onClick={handlePreview} className="text-xs">
+                  Preview Clip
+                </Button>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="sm" onClick={zoomIn} className="text-xs px-2" title="Zoom in">
+                  <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                  </svg>
+                </Button>
+                <Button variant="ghost" size="sm" onClick={zoomOut} className="text-xs px-2" title="Zoom out">
+                  <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+                  </svg>
+                </Button>
+                <Button variant="ghost" size="sm" onClick={zoomToSelection} className="text-xs px-2" title="Zoom to clip">
+                  Fit
+                </Button>
+                <Button variant="ghost" size="sm" onClick={zoomReset} className="text-xs px-2" title="Show full video">
+                  All
+                </Button>
+                <span className="text-[10px] text-muted-foreground font-mono ml-1">
+                  {Math.round(duration / vDuration)}x
+                </span>
+              </div>
             </div>
           </div>
         </div>

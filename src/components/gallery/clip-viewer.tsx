@@ -13,7 +13,9 @@ interface ClipViewerProps {
 export function ClipViewer({ clipId, onClose }: ClipViewerProps) {
   const { data: clip } = trpc.clips.getById.useQuery({ id: clipId });
   const videoRef = useRef<HTMLVideoElement>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
   const [playing, setPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
   const [showEditor, setShowEditor] = useState(false);
 
   const handleKeyDown = useCallback(
@@ -128,16 +130,17 @@ export function ClipViewer({ clipId, onClose }: ClipViewerProps) {
       </div>
 
       {/* Video */}
-      <div className="flex-1 flex items-center justify-center px-16" onClick={(e) => e.stopPropagation()}>
-        <div className="relative max-h-[calc(100vh-10rem)] max-w-full">
+      <div className="flex-1 flex flex-col items-center justify-center px-16" onClick={(e) => e.stopPropagation()}>
+        <div className="relative max-h-[calc(100vh-14rem)] max-w-full">
           <video
             ref={videoRef}
             src={`${clip.videoUrl}#t=${clip.startTime},${clip.endTime}`}
-            className="max-h-[calc(100vh-10rem)] max-w-full rounded"
+            className="max-h-[calc(100vh-14rem)] max-w-full rounded"
             playsInline
             onClick={togglePlay}
             onPlay={() => setPlaying(true)}
             onPause={() => setPlaying(false)}
+            onTimeUpdate={() => videoRef.current && setCurrentTime(videoRef.current.currentTime)}
           />
           {!playing && (
             <button
@@ -151,6 +154,40 @@ export function ClipViewer({ clipId, onClose }: ClipViewerProps) {
               </div>
             </button>
           )}
+        </div>
+
+        {/* Clip timeline */}
+        <div className="w-full max-w-2xl mt-4 px-4">
+          <div
+            ref={timelineRef}
+            className="relative h-2 bg-white/10 rounded-full cursor-pointer"
+            onClick={(e) => {
+              if (!timelineRef.current || !videoRef.current) return;
+              const rect = timelineRef.current.getBoundingClientRect();
+              const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+              const clipDur = clip.endTime - clip.startTime;
+              videoRef.current.currentTime = clip.startTime + pct * clipDur;
+            }}
+          >
+            {/* Progress */}
+            <div
+              className="absolute top-0 left-0 h-full bg-white/60 rounded-full transition-[width] duration-100"
+              style={{
+                width: `${Math.max(0, Math.min(100, ((currentTime - clip.startTime) / (clip.endTime - clip.startTime)) * 100))}%`,
+              }}
+            />
+            {/* Playhead */}
+            <div
+              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow -ml-1.5"
+              style={{
+                left: `${Math.max(0, Math.min(100, ((currentTime - clip.startTime) / (clip.endTime - clip.startTime)) * 100))}%`,
+              }}
+            />
+          </div>
+          <div className="flex justify-between mt-1">
+            <span className="text-[10px] text-white/40 font-mono">{formatTime(currentTime - clip.startTime)}</span>
+            <span className="text-[10px] text-white/40 font-mono">{formatTime(clip.endTime - clip.startTime)}</span>
+          </div>
         </div>
       </div>
 
