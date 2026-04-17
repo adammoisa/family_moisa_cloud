@@ -7,6 +7,10 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react", "@supabase/supabase-js"],
   },
+  outputFileTracingIncludes: {
+    "/api/clips/*/download": ["./node_modules/ffmpeg-static/ffmpeg"],
+  },
+  serverExternalPackages: ["ffmpeg-static"],
 };
 
 export default nextConfig;
