@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { TRPCProvider } from "@/providers/trpc-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const inter = Inter({
@@ -55,6 +56,7 @@ export default function RootLayout({
         <ThemeProvider>
           <TRPCProvider>
             <TooltipProvider>{children}</TooltipProvider>
+            <Toaster richColors position="top-center" />
           </TRPCProvider>
         </ThemeProvider>
       </body>
